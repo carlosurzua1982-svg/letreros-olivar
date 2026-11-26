@@ -647,7 +647,7 @@
           let sheetW = 2.44;
           let sheetH = 1.22;
 
-          if (allText.includes('lata') || allText.includes('galvanizad')) {
+          if (allText.includes('lata') || allText.includes('galvanizad') || allText.includes('zinc')) {
             isRigid = true;
             matKey = 'lata_galvanizada';
             matLabel = 'Lata Galvanizada 0.8mm';
@@ -659,7 +659,7 @@
             matLabel = 'Acrílico (Corte Láser / Router)';
             sheetW = 2.44;
             sheetH = 1.22; // Plancha 1.22x2.44 m
-          } else if (allText.includes('trovicel') || allText.includes('pvc espumado') || allText.includes('sintra')) {
+          } else if (allText.includes('trovicel') || allText.includes('pvc espumado') || allText.includes('sintra') || allText.includes('pvc')) {
             isRigid = true;
             matKey = 'trovicel';
             matLabel = 'PVC Espumado (Trovicel 3mm/5mm)';
@@ -671,12 +671,31 @@
             matLabel = 'Foam Board 5mm';
             sheetW = 2.44;
             sheetH = 1.22; // Plancha 1.22x2.44 m
-          } else if (allText.includes('acm') || allText.includes('aluminio compuesto')) {
+          } else if (allText.includes('acm') || allText.includes('aluminio compuesto') || allText.includes('alucobond')) {
             isRigid = true;
             matKey = 'acm';
             matLabel = 'Aluminio Compuesto (ACM 3mm)';
             sheetW = 2.44;
             sheetH = 1.22; // Plancha 1.22x2.44 m
+          } else if (allText.includes('madera') || allText.includes('pino') || allText.includes('mdf') || allText.includes('terciado')) {
+            isRigid = true;
+            matKey = 'madera_plancha';
+            matLabel = 'Plancha de Madera / Terciado / MDF';
+            sheetW = 2.44;
+            sheetH = 1.22;
+          } else if (allText.includes('plancha') || allText.includes('policarbonato')) {
+            isRigid = true;
+            matKey = 'plancha_generica';
+            matLabel = item.name || 'Plancha Rígida';
+            sheetW = 2.44;
+            sheetH = 1.22;
+          } else if (!allText.includes('vinilo') && !allText.includes('lona') && !allText.includes('adhesivo') && !allText.includes('banner') && !allText.includes('impresion') && !allText.includes('impresión') && !allText.includes('tela') && !allText.includes('pendon') && !allText.includes('pendón')) {
+            // Sustrato rígido genérico con medidas
+            isRigid = true;
+            matKey = 'sustrato_corte';
+            matLabel = item.name || 'Plancha Sustrato Base';
+            sheetW = 2.44;
+            sheetH = 1.22;
           }
 
           if (isRigid) {
@@ -702,7 +721,7 @@
           }
 
           // Detectar Insumos en Bobina (Vinilos, Laminados, Lonas)
-          if (allText.includes('vinilo') || allText.includes('adhesivo') || compLower.includes('adhesivo')) {
+          if (allText.includes('vinilo') || allText.includes('adhesivo') || compLower.includes('adhesivo') || allText.includes('plotter') || allText.includes('sticker') || allText.includes('impres')) {
             const rollKey = 'vinilo_adhesivo';
             if (!flexibleRolls[rollKey]) {
               flexibleRolls[rollKey] = {
@@ -718,7 +737,7 @@
             flexibleRolls[rollKey].pieces.push({ name: item.name, w, h, qty });
           }
 
-          if (allText.includes('laminado') || compLower.includes('laminado')) {
+          if (allText.includes('laminado') || compLower.includes('laminado') || allText.includes('protec')) {
             const rollKey = 'laminado_uv';
             if (!flexibleRolls[rollKey]) {
               flexibleRolls[rollKey] = {
@@ -734,7 +753,7 @@
             flexibleRolls[rollKey].pieces.push({ name: item.name, w, h, qty });
           }
 
-          if (allText.includes('tela') || allText.includes('banner') || allText.includes('lona') || allText.includes('frontlight') || allText.includes('backlight')) {
+          if (allText.includes('tela') || allText.includes('banner') || allText.includes('lona') || allText.includes('frontlight') || allText.includes('backlight') || allText.includes('pendon') || allText.includes('pendón')) {
             const rollKey = 'tela_pvc';
             if (!flexibleRolls[rollKey]) {
               flexibleRolls[rollKey] = {
@@ -2278,8 +2297,8 @@
       const [invoiceNotes, setInvoiceNotes] = useState('');
       const [invoiceOcNumber, setInvoiceOcNumber] = useState('');
 
-      // Estados para Filtros Avanzados del Historial y Cobranzas
-      const [historyStatusFilter, setHistoryStatusFilter] = useState('activas'); // 'activas', 'emitidas', 'taller', 'por_facturar', 'facturadas', 'pagadas', 'todas'
+      // Estados para Filtros Avanzados del Historial y Cobranzas (Por defecto 'todas' para que no desaparezca ninguna)
+      const [historyStatusFilter, setHistoryStatusFilter] = useState('todas'); // 'todas', 'emitidas', 'taller', 'listo', 'facturadas', 'pagadas', 'canceladas'
       const [historySearchQuery, setHistorySearchQuery] = useState('');
       const [showSupervisorDashboard, setShowSupervisorDashboard] = useState(false);
       const [supervisorFilter, setSupervisorFilter] = useState('retrasadas'); // 'retrasadas', 'todas_activas', 'urgentes'
@@ -4826,12 +4845,14 @@
           return (oCorr && oCorr === corrStr) || (oFolio && cleanCorr && oFolio.includes(cleanCorr));
         });
         if (ot) {
-          // Sincronizar siempre los insumos extraídos estrictos según los ítems reales de la cotización
+          // Sincronizar siempre los ítems e insumos extraídos estrictos según los ítems reales de la cotización
+          if (!ot.items || ot.items.length === 0) {
+            ot.items = quote.items || [];
+          }
           const itemsSource = (ot.items && ot.items.length > 0) ? ot.items : (quote.items || []);
           ot.materials = generateMaterialsList(itemsSource, ot.client?.deliveryMethod || quote.client?.deliveryMethod);
-        }
-        const isApprovedOrInShop = quote.status === 'Aprobada' || quote.status === 'Terminada' || quote.status === 'Facturada' || Boolean(quote.purchaseOrderNumber) || Boolean(quote.hasOt) || /fabricaci|taller|proceso/i.test(quote.status || '');
-        if (!ot && isApprovedOrInShop) {
+        } else {
+          // Generar siempre la OT para cualquier cotización para visualización y ficha técnica
           const otFolio = 'OT-' + cleanCorr;
           const generatedMaterials = generateMaterialsList(quote.items || [], quote.client?.deliveryMethod);
           ot = {
@@ -4842,7 +4863,7 @@
             createdAt: quote.date || new Date().toLocaleDateString('es-CL'),
             createdTimestamp: quote.timestamp || (Date.now() - 86400000 * 2),
             deadline: quote.deadline || quote.client?.manufacturingDays || '5 a 7 días hábiles',
-            status: (quote.status === 'Terminada' || quote.status === 'Facturada') ? 'completado' : (quote.status === 'Aprobada' ? 'por_iniciar' : 'fabricacion'),
+            status: (quote.status === 'Terminada' || quote.status === 'Facturada') ? 'completado' : ((quote.status === 'Aprobada' || quote.status === 'Taller') ? 'fabricacion' : 'por_iniciar'),
             client: { ...(quote.client || {}) },
             items: quote.items || [],
             materials: generatedMaterials,
@@ -7459,47 +7480,6 @@
                       </div>
                     </div>
 
-                    {/* AVISO PERSISTENTE / SEMÁFORO EN ROJO: TRABAJOS LISTOS EN TALLER PARA FACTURAR */}
-                    {quotesReadyToInvoice.length > 0 && (
-                      <div className="p-4 sm:p-5 rounded-2xl bg-red-600 text-white shadow-xl shadow-red-600/30 border-2 border-red-400 flex flex-col md:flex-row md:items-center justify-between gap-4 animate-pulse">
-                        <div className="flex items-center gap-3.5">
-                          <div className="w-12 h-12 rounded-xl bg-white text-red-600 flex items-center justify-center text-2xl font-black shrink-0 shadow-md">
-                            🚨
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-[10px] uppercase font-black tracking-widest bg-black/30 text-white px-2 py-0.5 rounded">
-                                AVISO DIRECTO DE TALLER & PRODUCCIÓN
-                              </span>
-                              <span className="text-xs font-mono font-bold bg-white text-red-700 px-2.5 py-0.5 rounded-full">
-                                {quotesReadyToInvoice.length} {quotesReadyToInvoice.length === 1 ? 'Trabajo Listo' : 'Trabajos Listos'}
-                              </span>
-                            </div>
-                            <h3 className="text-base sm:text-lg font-black font-heading mt-1 text-white">
-                              ¡Atención Administración: Hay trabajos TERMINADOS en taller listos para FACTURAR!
-                            </h3>
-                            <p className="text-xs text-red-100 mt-0.5 font-medium">
-                              Taller marcó terminado: {quotesReadyToInvoice.map(q => `${q.correlative} (${q.client?.name || 'Cliente'})`).join(' • ')}.
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2 shrink-0">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIntranetTab('historial');
-                              setHistoryStatusFilter('por_facturar');
-                            }}
-                            className="px-5 py-2.5 rounded-xl bg-white hover:bg-slate-100 text-red-700 font-black text-xs transition shadow-lg flex items-center gap-2 cursor-pointer border border-white"
-                          >
-                            <Icon name="file-text" className="w-4 h-4 text-red-600" />
-                            <span>🧾 Ir a Facturar ({quotesReadyToInvoice.length})</span>
-                            <Icon name="arrow-right" className="w-4 h-4 text-red-600" />
-                          </button>
-                        </div>
-                      </div>
-                    )}
 {/* SUB-PESTAÑA 1: COTIZADOR CORRELATIVO FORMAL */}
                 {intranetTab === 'cotizador' && (
                   <div className="space-y-8">
@@ -9010,22 +8990,23 @@
                   const totalFacturasPagadas = facturasPagadas.reduce((sum, q) => sum + (parseFloat(q.totals?.total) || 0), 0);
 
                   const filteredQuotes = quoteHistory.filter(q => {
-                    if (historyStatusFilter === 'stage_cotizado' && getQuotePipelineStage(q) !== 'cotizado') return false;
-                    if (historyStatusFilter === 'stage_confirmado' && getQuotePipelineStage(q) !== 'confirmado') return false;
-                    if (historyStatusFilter === 'stage_taller' && getQuotePipelineStage(q) !== 'taller') return false;
-                    if (historyStatusFilter === 'stage_listo' && getQuotePipelineStage(q) !== 'listo') return false;
-                    if (historyStatusFilter === 'stage_facturado' && getQuotePipelineStage(q) !== 'facturado') return false;
-                    if (historyStatusFilter === 'stage_entregado' && getQuotePipelineStage(q) !== 'entregado') return false;
-
-                    if (historyStatusFilter === 'activas' && !isQuoteActive(q)) return false;
-                    if (historyStatusFilter === 'emitidas' && !isQuoteOnlyIssued(q)) return false;
-                    if (historyStatusFilter === 'vencidas' && !isQuoteExpired(q)) return false;
-                    if (historyStatusFilter === 'canceladas' && !isQuoteCancelled(q)) return false;
-                    if (historyStatusFilter === 'taller' && !isQuoteInWorkshop(q)) return false;
-                    if (historyStatusFilter === 'por_facturar' && !isQuoteReadyToInvoice(q)) return false;
-                    if (historyStatusFilter === 'facturadas' && !isQuoteInvoiced(q)) return false;
-                    if (historyStatusFilter === 'pendientes_pago' && !isQuoteInvoicedPending(q)) return false;
-                    if (historyStatusFilter === 'pagadas' && !isQuotePaid(q)) return false;
+                    if (historyStatusFilter === 'todas') {
+                      // Se muestran todas las cotizaciones sin ocultar nada
+                    } else if (historyStatusFilter === 'emitidas' || historyStatusFilter === 'stage_cotizado') {
+                      if (!isQuoteOnlyIssued(q)) return false;
+                    } else if (historyStatusFilter === 'taller' || historyStatusFilter === 'stage_taller') {
+                      if (!isQuoteInWorkshop(q)) return false;
+                    } else if (historyStatusFilter === 'listo' || historyStatusFilter === 'stage_listo' || historyStatusFilter === 'por_facturar') {
+                      if (!isQuoteReadyToInvoice(q) && q.status !== 'Terminada') return false;
+                    } else if (historyStatusFilter === 'facturadas' || historyStatusFilter === 'stage_facturado') {
+                      if (!isQuoteInvoiced(q)) return false;
+                    } else if (historyStatusFilter === 'pagadas' || historyStatusFilter === 'stage_entregado') {
+                      if (!isQuotePaid(q)) return false;
+                    } else if (historyStatusFilter === 'canceladas') {
+                      if (!isQuoteCancelled(q)) return false;
+                    } else if (historyStatusFilter === 'pendientes_pago') {
+                      if (!isQuoteInvoicedPending(q)) return false;
+                    }
 
                     if (historySearchQuery.trim()) {
                       const qStr = historySearchQuery.trim().toLowerCase();
@@ -9098,44 +9079,9 @@
                           </button>
                         </div>
                       )}
-                      {/* BANNER DE DETECCIÓN DE COTIZACIONES VENCIDAS */}
-                      {countVencidas > 0 && (
-                        <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-amber-950 shadow-sm">
-                          <div className="flex items-center gap-2.5">
-                            <span className="text-xl">⏰</span>
-                            <div>
-                              <p className="text-xs font-bold text-amber-950">
-                                Se detectaron {countVencidas} cotización(es) con plazo de vigencia expirado sin confirmación.
-                              </p>
-                              <p className="text-[11px] text-amber-800">
-                                El cliente no confirmó dentro del plazo seleccionado al emitir la oferta (7, 15 o 30 días). Puedes cancelarlas o eliminarlas definitivamente.
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2 shrink-0">
-                            <button
-                              type="button"
-                              onClick={handleCancelAllExpiredQuotes}
-                              className="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition flex items-center gap-1 shadow-sm cursor-pointer"
-                              title="Marcar todas las cotizaciones vencidas como Canceladas"
-                            >
-                              <span>🚫 Cancelar Vencidas</span>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={handleDeleteAllExpiredQuotes}
-                              className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition flex items-center gap-1 shadow-sm cursor-pointer"
-                              title="Eliminar permanentemente del sistema las cotizaciones vencidas"
-                            >
-                              <span>🗑️ Eliminar Vencidas</span>
-                            </button>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* BARRA DE FILTROS POR LÍNEAS SEPARADAS */}
+                      {/* BARRA DE FILTROS SIMPLIFICADA Y ÓPTIMA */}
                       <div className="p-4 bg-white rounded-2xl border border-slate-200 shadow-sm space-y-3">
-                        {/* Línea 1: Buscador en tiempo real */}
+                        {/* Buscador en tiempo real */}
                         <div className="relative">
                           <input
                             type="text"
@@ -9158,244 +9104,137 @@
                           )}
                         </div>
 
-                        {/* Línea 2: Flujo Operativo Separado (Sin arrumpar) */}
-                        <div>
-                          <div className="flex items-center justify-between mb-1.5">
-                            <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">
-                              Listados del Ciclo de Producción & Facturación:
+                        {/* Pestañas de Estado con Colores Claros (Sin desaparecer cotizaciones) */}
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setHistoryStatusFilter('todas')}
+                            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer border ${
+                              historyStatusFilter === 'todas'
+                                ? 'bg-slate-900 border-slate-900 text-white shadow-sm'
+                                : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                            }`}
+                          >
+                            <span>📋 Todas</span>
+                            <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full font-black ${
+                              historyStatusFilter === 'todas' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-800'
+                            }`}>
+                              {countTodas}
                             </span>
-                            {historyStatusFilter !== 'activas' && (
-                              <button
-                                type="button"
-                                onClick={() => setHistoryStatusFilter('activas')}
-                                className="text-[11px] font-bold text-red-600 hover:underline cursor-pointer"
-                              >
-                                ← Volver a Activas
-                              </button>
-                            )}
-                          </div>
-                          <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-2">
-                            {/* Pestaña: Todas */}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setHistoryStatusFilter('emitidas')}
+                            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer border ${
+                              historyStatusFilter === 'emitidas' || historyStatusFilter === 'stage_cotizado'
+                                ? 'bg-slate-700 border-slate-800 text-white shadow-sm'
+                                : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                            }`}
+                          >
+                            <span>⚪ Emitidas</span>
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full font-black bg-slate-100 text-slate-800">
+                              {countEmitidas}
+                            </span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setHistoryStatusFilter('taller')}
+                            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer border ${
+                              historyStatusFilter === 'taller' || historyStatusFilter === 'stage_taller'
+                                ? 'bg-red-600 border-red-700 text-white shadow-md font-black animate-pulse'
+                                : countTaller > 0
+                                  ? 'bg-red-50 border-red-300 text-red-900 hover:bg-red-100 font-bold'
+                                  : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                            }`}
+                          >
+                            <span>🔴 En Taller</span>
+                            <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full font-black ${
+                              historyStatusFilter === 'taller' || historyStatusFilter === 'stage_taller' ? 'bg-white text-red-700' : 'bg-red-600 text-white'
+                            }`}>
+                              {countTaller}
+                            </span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setHistoryStatusFilter('listo')}
+                            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer border ${
+                              historyStatusFilter === 'listo' || historyStatusFilter === 'stage_listo' || historyStatusFilter === 'por_facturar'
+                                ? 'bg-emerald-600 border-emerald-700 text-white shadow-md font-black'
+                                : countPorFacturar > 0
+                                  ? 'bg-emerald-50 border-emerald-300 text-emerald-900 hover:bg-emerald-100 font-bold'
+                                  : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                            }`}
+                          >
+                            <span>🟢 Listo en Taller</span>
+                            <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full font-black ${
+                              historyStatusFilter === 'listo' || historyStatusFilter === 'stage_listo' ? 'bg-white text-emerald-700' : 'bg-emerald-600 text-white'
+                            }`}>
+                              {countPorFacturar}
+                            </span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setHistoryStatusFilter('facturadas')}
+                            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer border ${
+                              historyStatusFilter === 'facturadas' || historyStatusFilter === 'stage_facturado'
+                                ? 'bg-blue-600 border-blue-700 text-white shadow-sm font-black'
+                                : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                            }`}
+                          >
+                            <span>🔵 Facturadas</span>
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full font-black bg-blue-100 text-blue-900">
+                              {countFacturadas}
+                            </span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setHistoryStatusFilter('pagadas')}
+                            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer border ${
+                              historyStatusFilter === 'pagadas' || historyStatusFilter === 'stage_entregado'
+                                ? 'bg-teal-700 border-teal-800 text-white shadow-sm font-black'
+                                : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                            }`}
+                          >
+                            <span>💵 Pagadas</span>
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full font-black bg-teal-100 text-teal-900">
+                              {countPagadas}
+                            </span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setHistoryStatusFilter('canceladas')}
+                            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer border ${
+                              historyStatusFilter === 'canceladas'
+                                ? 'bg-zinc-700 border-zinc-800 text-white shadow-sm font-black'
+                                : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                            }`}
+                          >
+                            <span>🚫 Canceladas</span>
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full font-black bg-zinc-100 text-zinc-800">
+                              {countCanceladas}
+                            </span>
+                          </button>
+
+                          {countFacturasPendientes > 0 && (
                             <button
                               type="button"
-                              onClick={() => setHistoryStatusFilter('todas')}
-                              className={`p-2.5 rounded-xl border text-left transition flex flex-col justify-between cursor-pointer ${
-                                historyStatusFilter === 'todas'
-                                  ? 'bg-slate-900 border-slate-900 text-white shadow-sm'
-                                  : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50'
-                              }`}
-                            >
-                              <div className="flex items-center justify-between text-xs font-bold">
-                                <span>📋 Todas</span>
-                                <span className={`font-mono text-[11px] px-2 py-0.5 rounded-full font-bold ${
-                                  historyStatusFilter === 'todas' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-800'
-                                }`}>
-                                  {countTodas}
-                                </span>
-                              </div>
-                              <span className="text-[10px] text-slate-400 mt-1">Total emitidas</span>
-                            </button>
-
-                            {/* Pestaña: 1. Cotizadas */}
-                            <button
-                              type="button"
-                              onClick={() => setHistoryStatusFilter('stage_cotizado')}
-                              className={`p-2.5 rounded-xl border text-left transition flex flex-col justify-between cursor-pointer ${
-                                historyStatusFilter === 'stage_cotizado' || historyStatusFilter === 'emitidas'
-                                  ? 'bg-slate-200 border-slate-400 text-slate-900 shadow-sm ring-1 ring-slate-400 font-bold'
-                                  : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50'
-                              }`}
-                            >
-                              <div className="flex items-center justify-between text-xs font-bold">
-                                <span>⚪ 1. Cotizadas</span>
-                                <span className="font-mono text-[11px] bg-slate-100 text-slate-800 px-2 py-0.5 rounded-full font-bold">
-                                  {countStageCotizado}
-                                </span>
-                              </div>
-                              <span className="text-[10px] text-slate-500 mt-1">Esperando cliente</span>
-                            </button>
-
-                            {/* Pestaña: 2. Confirmadas */}
-                            <button
-                              type="button"
-                              onClick={() => setHistoryStatusFilter('stage_confirmado')}
-                              className={`p-2.5 rounded-xl border text-left transition flex flex-col justify-between cursor-pointer ${
-                                historyStatusFilter === 'stage_confirmado'
-                                  ? 'bg-blue-600 border-blue-700 text-white shadow-sm ring-1 ring-blue-400 font-bold'
-                                  : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50'
-                              }`}
-                            >
-                              <div className="flex items-center justify-between text-xs font-bold">
-                                <span>🤝 2. Confirmadas</span>
-                                <span className={`font-mono text-[11px] px-2 py-0.5 rounded-full font-bold ${
-                                  historyStatusFilter === 'stage_confirmado' ? 'bg-white/20 text-white' : 'bg-blue-100 text-blue-800'
-                                }`}>
-                                  {countStageConfirmado}
-                                </span>
-                              </div>
-                              <span className={`text-[10px] mt-1 ${historyStatusFilter === 'stage_confirmado' ? 'text-blue-100' : 'text-slate-500'}`}>Aprobadas x cliente</span>
-                            </button>
-
-                            {/* Pestaña: 3. En Taller (ROJO) */}
-                            <button
-                              type="button"
-                              onClick={() => setHistoryStatusFilter('stage_taller')}
-                              className={`p-2.5 rounded-xl border text-left transition flex flex-col justify-between cursor-pointer ${
-                                historyStatusFilter === 'stage_taller' || historyStatusFilter === 'taller'
-                                  ? 'bg-red-600 border-red-700 text-white shadow-lg ring-2 ring-red-400 font-black animate-pulse'
-                                  : countStageTaller > 0
-                                    ? 'bg-red-50 border-red-300 text-red-900 hover:bg-red-100'
-                                    : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50'
-                              }`}
-                            >
-                              <div className="flex items-center justify-between text-xs font-bold">
-                                <span>🔴 3. En Taller</span>
-                                <span className={`font-mono text-[11px] px-2 py-0.5 rounded-full font-black ${
-                                  historyStatusFilter === 'stage_taller' ? 'bg-white text-red-700' : 'bg-red-600 text-white'
-                                }`}>
-                                  {countStageTaller}
-                                </span>
-                              </div>
-                              <span className={`text-[10px] mt-1 ${historyStatusFilter === 'stage_taller' ? 'text-red-100' : 'text-red-700 font-semibold'}`}>En fabricación</span>
-                            </button>
-
-                            {/* Pestaña: 4. Listas en Taller (VERDE) */}
-                            <button
-                              type="button"
-                              onClick={() => setHistoryStatusFilter('stage_listo')}
-                              className={`p-2.5 rounded-xl border text-left transition flex flex-col justify-between cursor-pointer ${
-                                historyStatusFilter === 'stage_listo' || historyStatusFilter === 'por_facturar'
-                                  ? 'bg-emerald-600 border-emerald-700 text-white shadow-lg ring-2 ring-emerald-400 font-black'
-                                  : countStageListo > 0
-                                    ? 'bg-emerald-50 border-emerald-300 text-emerald-900 hover:bg-emerald-100'
-                                    : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50'
-                              }`}
-                            >
-                              <div className="flex items-center justify-between text-xs font-bold">
-                                <span>🟢 4. Listas</span>
-                                <span className={`font-mono text-[11px] px-2 py-0.5 rounded-full font-black ${
-                                  historyStatusFilter === 'stage_listo' ? 'bg-white text-emerald-700' : 'bg-emerald-600 text-white'
-                                }`}>
-                                  {countStageListo}
-                                </span>
-                              </div>
-                              <span className={`text-[10px] mt-1 ${historyStatusFilter === 'stage_listo' ? 'text-emerald-100' : 'text-emerald-700 font-semibold'}`}>Taller terminó</span>
-                            </button>
-
-                            {/* Pestaña: 5. Facturar */}
-                            <button
-                              type="button"
-                              onClick={() => setHistoryStatusFilter('stage_facturado')}
-                              className={`p-2.5 rounded-xl border text-left transition flex flex-col justify-between cursor-pointer ${
-                                historyStatusFilter === 'stage_facturado' || historyStatusFilter === 'facturadas'
-                                  ? 'bg-purple-600 border-purple-700 text-white shadow-sm ring-1 ring-purple-400 font-bold'
-                                  : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50'
-                              }`}
-                            >
-                              <div className="flex items-center justify-between text-xs font-bold">
-                                <span>🧾 5. Facturar</span>
-                                <span className={`font-mono text-[11px] px-2 py-0.5 rounded-full font-bold ${
-                                  historyStatusFilter === 'stage_facturado' ? 'bg-white/20 text-white' : 'bg-purple-100 text-purple-800'
-                                }`}>
-                                  {countStageFacturado}
-                                </span>
-                              </div>
-                              <span className={`text-[10px] mt-1 ${historyStatusFilter === 'stage_facturado' ? 'text-purple-100' : 'text-slate-500'}`}>Facturadas SII</span>
-                            </button>
-
-                            {/* Pestaña: 6. Entregadas / Pagadas */}
-                            <button
-                              type="button"
-                              onClick={() => setHistoryStatusFilter('stage_entregado')}
-                              className={`p-2.5 rounded-xl border text-left transition flex flex-col justify-between cursor-pointer ${
-                                historyStatusFilter === 'stage_entregado' || historyStatusFilter === 'pagadas'
-                                  ? 'bg-teal-700 border-teal-800 text-white shadow-sm ring-2 ring-teal-500 font-bold'
-                                  : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50'
-                              }`}
-                            >
-                              <div className="flex items-center justify-between text-xs font-bold">
-                                <span>💵 6. Entregadas</span>
-                                <span className={`font-mono text-[11px] px-2 py-0.5 rounded-full font-bold ${
-                                  historyStatusFilter === 'stage_entregado' ? 'bg-white/20 text-white' : 'bg-teal-100 text-teal-800'
-                                }`}>
-                                  {countStageEntregado}
-                                </span>
-                              </div>
-                              <span className={`text-[10px] mt-1 ${historyStatusFilter === 'stage_entregado' ? 'text-teal-100' : 'text-slate-500'}`}>Entregadas / Pagadas</span>
-                            </button>
-
-                            {/* Pestaña: Vencidas */}
-                            <button
-                              type="button"
-                              onClick={() => setHistoryStatusFilter('vencidas')}
-                              className={`p-2.5 rounded-xl border text-left transition flex flex-col justify-between cursor-pointer ${
-                                historyStatusFilter === 'vencidas'
-                                  ? 'bg-amber-500 border-amber-600 text-slate-950 shadow-sm ring-1 ring-amber-400 font-bold'
-                                  : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50'
-                              }`}
-                            >
-                              <div className="flex items-center justify-between text-xs font-bold">
-                                <span>⏰ Vencidas</span>
-                                <span className={`font-mono text-[11px] px-2 py-0.5 rounded-full font-bold ${
-                                  countVencidas > 0 ? 'bg-amber-200 text-amber-950 font-black' : 'bg-slate-100 text-slate-600'
-                                }`}>
-                                  {countVencidas}
-                                </span>
-                              </div>
-                              <span className="text-[10px] text-slate-500 mt-1">Plazo expirado</span>
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* Línea 3: MÓDULO EXCLUSIVO DE COBRANZAS (SOLO FACTURAS PENDIENTES DE PAGO) */}
-                        <div className={`p-3.5 rounded-xl border transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
-                          historyStatusFilter === 'pendientes_pago'
-                            ? 'bg-amber-50 border-amber-500 shadow-sm ring-1 ring-amber-400'
-                            : 'bg-slate-50 border-slate-200'
-                        }`}>
-                          <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-700 border border-amber-300 flex items-center justify-center text-lg shrink-0">
-                              ⏳
-                            </div>
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <span className="font-heading font-black text-slate-800 text-xs sm:text-sm">
-                                  Revisión Semanal de Cobranzas (Solo Facturas Emitidas)
-                                </span>
-                                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300">
-                                  {countFacturasPendientes} facturas por cobrar
-                                </span>
-                              </div>
-                              <p className="text-[11px] text-slate-600 mt-0.5">
-                                Total Facturas por cobrar: <strong className="text-amber-800 font-mono font-bold text-xs">{formatCLP(totalFacturasPorCobrar)}</strong> • Facturas cobradas: <strong className="text-emerald-700 font-mono font-bold text-xs">{formatCLP(totalFacturasPagadas)}</strong>
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => setHistoryStatusFilter(historyStatusFilter === 'pendientes_pago' ? 'activas' : 'pendientes_pago')}
-                              className={`px-3.5 py-2 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5 shadow-sm ${
+                              onClick={() => setHistoryStatusFilter(historyStatusFilter === 'pendientes_pago' ? 'todas' : 'pendientes_pago')}
+                              className={`ml-auto px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer border ${
                                 historyStatusFilter === 'pendientes_pago'
-                                  ? 'bg-amber-600 text-white hover:bg-amber-700 ring-2 ring-amber-300'
-                                  : 'bg-white hover:bg-amber-50 text-amber-800 border border-amber-300'
+                                  ? 'bg-amber-600 border-amber-700 text-white shadow-sm font-black'
+                                  : 'bg-amber-50 border-amber-300 text-amber-900 hover:bg-amber-100'
                               }`}
+                              title="Ver facturas pendientes de cobro"
                             >
-                              <span>{historyStatusFilter === 'pendientes_pago' ? '✓ Viendo Solo Facturas por Cobrar' : '🔍 Filtrar Facturas Pendientes de Cobro'}</span>
+                              <span>⏳ Por Cobrar ({countFacturasPendientes})</span>
                             </button>
-                            <button
-                              type="button"
-                              onClick={() => setHistoryStatusFilter(historyStatusFilter === 'todas' ? 'activas' : 'todas')}
-                              className={`px-3 py-2 rounded-xl text-xs font-bold border transition cursor-pointer ${
-                                historyStatusFilter === 'todas'
-                                  ? 'bg-slate-800 text-white border-slate-800'
-                                  : 'bg-white hover:bg-slate-100 text-slate-600 border-slate-300'
-                              }`}
-                            >
-                              {historyStatusFilter === 'todas' ? '📋 Ver Activas' : `📋 Ver Todas (${countTodas})`}
-                            </button>
-                          </div>
+                          )}
                         </div>
                       </div>
 
@@ -9703,9 +9542,9 @@
                                       </span>
                                     )}
 
-                                                                        {/* CELDA DE CONTROL DIRECTO DE ESTADO (TALLER / LISTO / FACTURADA / PAGADA) */}
-                                    <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-xl bg-slate-100 border border-slate-200">
-                                      <span className="text-[10px] font-black uppercase text-slate-500 pl-1">Estado:</span>
+                                                                        {/* SELECTOR MANUAL DE ESTADO VISUAL Y DESTACADO (NO DESAPARECE) */}
+                                    <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-xl bg-slate-100 border border-slate-300 shadow-xs">
+                                      <span className="text-[10px] font-black uppercase text-slate-600 pl-1">Estado:</span>
                                       <select
                                         value={
                                           paid ? 'Pagada' :
@@ -9716,13 +9555,13 @@
                                         }
                                         onChange={(e) => handleUpdateQuoteStatusDirect(q, e.target.value)}
                                         className={`text-xs font-black rounded-lg px-2.5 py-1 transition cursor-pointer border shadow-xs outline-none ${
-                                          paid ? 'bg-emerald-700 text-white border-emerald-800' :
+                                          paid ? 'bg-teal-700 text-white border-teal-800' :
                                           q.status === 'Facturada' ? 'bg-blue-600 text-white border-blue-700' :
-                                          (q.status === 'Terminada' || (getQuoteOt(q) && getQuoteOt(q).status === 'completado')) ? 'bg-emerald-500 text-white border-emerald-600' :
-                                          isQuoteInWorkshop(q) ? 'bg-red-600 text-white border-red-700 font-extrabold animate-pulse' :
-                                          'bg-white text-slate-800 border-slate-300'
+                                          (q.status === 'Terminada' || (getQuoteOt(q) && getQuoteOt(q).status === 'completado')) ? 'bg-emerald-600 text-white border-emerald-700' :
+                                          isQuoteInWorkshop(q) ? 'bg-red-600 text-white border-red-700 font-black animate-pulse' :
+                                          (q.status === 'Cancelada' ? 'bg-zinc-300 text-zinc-700 border-zinc-400' : 'bg-white text-slate-800 border-slate-300')
                                         }`}
-                                        title="Cambiar estado del trabajo en 1 clic directamente"
+                                        title="Seleccionar estado manualmente para esta cotización"
                                       >
                                         <option value="Emitida">⚪ Emitida</option>
                                         <option value="Taller">🔴 En Taller</option>
@@ -9733,11 +9572,11 @@
                                       </select>
 
                                       {/* Acciones directas rápidas */}
-                                      {!isQuoteInWorkshop(q) && !paid && q.status !== 'Terminada' && q.status !== 'Facturada' && (
+                                      {!isQuoteInWorkshop(q) && !paid && q.status !== 'Terminada' && q.status !== 'Facturada' && q.status !== 'Cancelada' && (
                                         <button
                                           type="button"
                                           onClick={() => handleUpdateQuoteStatusDirect(q, 'Taller')}
-                                          className="px-2 py-1 rounded-lg text-[10px] font-extrabold bg-red-600 hover:bg-red-700 text-white transition shadow-xs cursor-pointer flex items-center gap-1"
+                                          className="px-2 py-1 rounded-lg text-[10px] font-black bg-red-600 hover:bg-red-700 text-white transition shadow-xs cursor-pointer flex items-center gap-1"
                                           title="Enviar a Taller (en rojo)"
                                         >
                                           <span>🔴 A Taller</span>
@@ -9747,7 +9586,7 @@
                                         <button
                                           type="button"
                                           onClick={() => handleUpdateQuoteStatusDirect(q, 'Terminada')}
-                                          className="px-2 py-1 rounded-lg text-[10px] font-extrabold bg-emerald-600 hover:bg-emerald-700 text-white transition shadow-xs cursor-pointer flex items-center gap-1"
+                                          className="px-2 py-1 rounded-lg text-[10px] font-black bg-emerald-600 hover:bg-emerald-700 text-white transition shadow-xs cursor-pointer flex items-center gap-1"
                                           title="Marcar como Listo / Terminado en Taller"
                                         >
                                           <span>🟢 Listo</span>
@@ -9757,7 +9596,7 @@
                                         <button
                                           type="button"
                                           onClick={() => handleOpenInvoiceModal(q)}
-                                          className="px-2 py-1 rounded-lg text-[10px] font-extrabold bg-blue-600 hover:bg-blue-700 text-white transition shadow-xs cursor-pointer flex items-center gap-1"
+                                          className="px-2 py-1 rounded-lg text-[10px] font-black bg-blue-600 hover:bg-blue-700 text-white transition shadow-xs cursor-pointer flex items-center gap-1"
                                           title="Facturar trabajo terminado"
                                         >
                                           <span>🧾 Facturar</span>
@@ -9799,65 +9638,24 @@
                                     {q.items?.length || 0} trabajos • Modalidad: <strong className="text-slate-800">{q.client?.deliveryMethod === 'instalacion' ? 'Instalación' : q.client?.deliveryMethod === 'entrega' ? 'Despacho a Cliente' : 'Retiro en Taller'}</strong> • Total: <strong className="text-slate-900 font-mono text-sm">{formatCLP(q.totals?.total)}</strong>
                                   </div>
 
-                                  {/* STEPPER / PIPELINE SECUENCIAL DE ESTADOS (1 AL 6 CON CLIC DIRECTO) */}
+                                  {/* Resumen de Cubicación Rápida para Taller */}
                                   {(() => {
-                                    const currentStageId = getQuotePipelineStage(q);
-                                    const currentStageIndex = PIPELINE_STAGES.findIndex(s => s.id === currentStageId);
+                                    const cub = calculateWorkshopCubicationAndNesting(q.items || []);
+                                    if (cub.totalPiecesCount === 0) return null;
                                     return (
-                                      <div className="w-full bg-slate-50 p-2.5 rounded-xl border border-slate-200 mt-3">
-                                        <div className="flex items-center justify-between mb-2">
-                                          <div className="flex items-center gap-1.5">
-                                            <span className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Flujo de Estados:</span>
-                                            <span className="text-[11px] font-bold text-slate-800">
-                                              Paso {currentStageIndex + 1} de 6: <strong className={currentStageId === 'taller' ? 'text-red-600 font-black' : currentStageId === 'listo' ? 'text-emerald-600 font-black' : 'text-slate-900'}>{PIPELINE_STAGES[currentStageIndex]?.label}</strong>
-                                            </span>
-                                          </div>
-                                          {currentStageIndex < PIPELINE_STAGES.length - 1 && (
-                                            <button
-                                              type="button"
-                                              onClick={() => handleSetPipelineStage(q, PIPELINE_STAGES[currentStageIndex + 1].id)}
-                                              className="text-[11px] font-black text-red-600 hover:text-white bg-red-50 hover:bg-red-600 px-2.5 py-1 rounded-lg border border-red-200 transition flex items-center gap-1 shadow-2xs cursor-pointer"
-                                              title={`Avanzar al siguiente estado: ${PIPELINE_STAGES[currentStageIndex + 1].label}`}
-                                            >
-                                              <span>Avanzar a {PIPELINE_STAGES[currentStageIndex + 1].label}</span>
-                                              <Icon name="arrow-right" className="w-3 h-3" />
-                                            </button>
-                                          )}
-                                        </div>
-
-                                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-1.5">
-                                          {PIPELINE_STAGES.map((st, idx) => {
-                                            const isCurrent = currentStageId === st.id;
-                                            const isPassed = currentStageIndex > idx;
-                                            return (
-                                              <button
-                                                key={st.id}
-                                                type="button"
-                                                onClick={() => handleSetPipelineStage(q, st.id)}
-                                                className={`px-2 py-1.5 rounded-lg text-xs font-bold transition flex items-center justify-between cursor-pointer border ${
-                                                  isCurrent
-                                                    ? st.id === 'taller'
-                                                      ? 'bg-red-600 text-white border-red-700 shadow-md font-black ring-2 ring-red-400 animate-pulse'
-                                                      : st.id === 'listo'
-                                                        ? 'bg-emerald-600 text-white border-emerald-700 shadow-md font-black ring-2 ring-emerald-400'
-                                                        : st.id === 'entregado'
-                                                          ? 'bg-teal-700 text-white border-teal-800 shadow-md font-black ring-2 ring-teal-400'
-                                                          : st.id === 'facturado'
-                                                            ? 'bg-purple-600 text-white border-purple-700 shadow-md font-black ring-2 ring-purple-400'
-                                                            : 'bg-blue-600 text-white border-blue-700 shadow-md font-black ring-2 ring-blue-400'
-                                                    : isPassed
-                                                      ? 'bg-emerald-50 text-emerald-800 border-emerald-200 opacity-90 hover:opacity-100 font-medium'
-                                                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100 hover:text-slate-900'
-                                                }`}
-                                                title={`Clic para mover trabajo a: ${st.label}`}
-                                              >
-                                                <span className="truncate">{st.short}</span>
-                                                {isCurrent && <span className="text-[10px] ml-1">●</span>}
-                                                {isPassed && <span className="text-[10px] ml-1 text-emerald-600">✓</span>}
-                                              </button>
-                                            );
-                                          })}
-                                        </div>
+                                      <div className="flex flex-wrap items-center gap-1.5 mt-2 text-[11px] font-mono text-slate-700 bg-amber-50/80 border border-amber-200/80 px-2.5 py-1 rounded-lg">
+                                        <span className="font-bold text-amber-900">📐 Cubicación:</span>
+                                        <span>{cub.totalPiecesCount} piezas ({cub.totalAreaSqm.toFixed(2)} m²)</span>
+                                        {cub.rigidMaterials.map((rm, idx) => (
+                                          <span key={idx} className="bg-white border border-amber-300 text-amber-950 px-1.5 py-0.5 rounded text-[10px] font-bold">
+                                            {rm.totalSheetsGroup} {rm.totalSheetsGroup === 1 ? 'plancha' : 'planchas'} {rm.name}
+                                          </span>
+                                        ))}
+                                        {cub.flexibleMaterials.map((fm, idx) => (
+                                          <span key={idx} className="bg-white border border-amber-300 text-amber-950 px-1.5 py-0.5 rounded text-[10px] font-bold">
+                                            ~{fm.linearMeters}m bobina {fm.name}
+                                          </span>
+                                        ))}
                                       </div>
                                     );
                                   })()}
@@ -11225,49 +11023,7 @@
                           <span>Volver al Menú</span>
                         </button>
                       </div>
-                    </div>
-
-                    {/* AVISO PERSISTENTE / SEMÁFORO EN ROJO: TRABAJOS LISTOS EN TALLER PARA FACTURAR */}
-                    {quotesReadyToInvoice.length > 0 && (
-                      <div className="p-4 sm:p-5 rounded-2xl bg-red-600 text-white shadow-xl shadow-red-600/30 border-2 border-red-400 flex flex-col md:flex-row md:items-center justify-between gap-4 animate-pulse">
-                        <div className="flex items-center gap-3.5">
-                          <div className="w-12 h-12 rounded-xl bg-white text-red-600 flex items-center justify-center text-2xl font-black shrink-0 shadow-md">
-                            🚨
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-[10px] uppercase font-black tracking-widest bg-black/30 text-white px-2 py-0.5 rounded">
-                                AVISO DIRECTO DE TALLER & PRODUCCIÓN
-                              </span>
-                              <span className="text-xs font-mono font-bold bg-white text-red-700 px-2.5 py-0.5 rounded-full">
-                                {quotesReadyToInvoice.length} {quotesReadyToInvoice.length === 1 ? 'Trabajo Listo' : 'Trabajos Listos'}
-                              </span>
-                            </div>
-                            <h3 className="text-base sm:text-lg font-black font-heading mt-1 text-white">
-                              ¡Atención Administración: Hay trabajos TERMINADOS en taller listos para FACTURAR!
-                            </h3>
-                            <p className="text-xs text-red-100 mt-0.5 font-medium">
-                              Taller marcó terminado: {quotesReadyToInvoice.map(q => `${q.correlative} (${q.client?.name || 'Cliente'})`).join(' • ')}.
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2 shrink-0">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIntranetTab('historial');
-                              setHistoryStatusFilter('por_facturar');
-                            }}
-                            className="px-5 py-2.5 rounded-xl bg-white hover:bg-slate-100 text-red-700 font-black text-xs transition shadow-lg flex items-center gap-2 cursor-pointer border border-white"
-                          >
-                            <Icon name="file-text" className="w-4 h-4 text-red-600" />
-                            <span>🧾 Ir a Facturar ({quotesReadyToInvoice.length})</span>
-                            <Icon name="arrow-right" className="w-4 h-4 text-red-600" />
-                          </button>
-                        </div>
-                      </div>
-                    )}{/* SUB-PESTAÑA: GESTIÓN DE TALLER & ÓRDENES DE TRABAJO (OT) */}
+                    </div>{/* SUB-PESTAÑA: GESTIÓN DE TALLER & ÓRDENES DE TRABAJO (OT) */}
                 {intranetTab === 'taller' && (
                   <div className="space-y-6">
                     {/* Header de Taller */}
@@ -13411,7 +13167,10 @@
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
-                        {(selectedOtForPrint.items || []).map((item, idx) => (
+                        {((selectedOtForPrint.items && selectedOtForPrint.items.length > 0)
+                          ? selectedOtForPrint.items
+                          : (quoteHistory.find(q => q.correlative === selectedOtForPrint.correlative)?.items || [])
+                        ).map((item, idx) => (
                           <tr key={idx}>
                             <td className="py-2 px-2 font-bold font-mono text-center">{item.quantity}</td>
                             <td className="py-2 px-2 font-mono whitespace-nowrap">
@@ -13432,7 +13191,10 @@
 
                   {/* SECCIÓN 2 & 3: CUBICACIÓN TÉCNICA DE MATERIALES & NESTING VISUAL */}
                   {(() => {
-                    const cub = calculateWorkshopCubicationAndNesting(selectedOtForPrint.items);
+                    const otItems = (selectedOtForPrint.items && selectedOtForPrint.items.length > 0)
+                      ? selectedOtForPrint.items
+                      : (quoteHistory.find(q => q.correlative === selectedOtForPrint.correlative)?.items || []);
+                    const cub = calculateWorkshopCubicationAndNesting(otItems);
                     return (
                       <div className="mb-5 space-y-4">
                         {/* 2. Cubicación de Materiales para Bodega */}
