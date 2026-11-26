@@ -1735,7 +1735,24 @@
                 });
                 fireQuotes.forEach(cloudQ => {
                   const k = normCorr(cloudQ.correlative || cloudQ._fireId);
-                  if (k && !deletedSet.has(k)) map.set(k, cloudQ);
+                  if (k && !deletedSet.has(k)) {
+                    const localQ = map.get(k);
+                    if (localQ) {
+                      const isPaidVal = localQ.isPaid === true || localQ.status === 'Pagada' || localQ.paymentStatus === 'Pagada' || cloudQ.isPaid === true || cloudQ.status === 'Pagada';
+                      const bestStatus = isPaidVal ? 'Pagada' : (localQ.status === 'Facturada' || cloudQ.status === 'Facturada' ? 'Facturada' : (cloudQ.status || localQ.status));
+                      map.set(k, {
+                        ...cloudQ,
+                        ...localQ,
+                        status: bestStatus,
+                        isPaid: isPaidVal,
+                        paymentStatus: isPaidVal ? 'Pagada' : (cloudQ.paymentStatus || localQ.paymentStatus || 'Pendiente'),
+                        invoiceNumber: cloudQ.invoiceNumber || localQ.invoiceNumber || '',
+                        purchaseOrderNumber: cloudQ.purchaseOrderNumber || localQ.purchaseOrderNumber || ''
+                      });
+                    } else {
+                      map.set(k, cloudQ);
+                    }
+                  }
                 });
                 const merged = Array.from(map.values()).sort((a, b) => {
                   const numA = a.numericCorrelative || parseInt((a.correlative || '').replace(/\D/g, ''), 10) || 0;
@@ -2389,12 +2406,19 @@
                   if (k && !deletedSet.has(k)) {
                     const localQ = map.get(k);
                     if (localQ) {
-                      const isLocalFinished = localQ.status === 'Terminada' || localQ.status === 'Facturada' || localQ.isDelivered || localQ.deliveryStatus === 'entregado';
-                      if (isLocalFinished && cq.status !== 'Terminada' && cq.status !== 'Facturada') {
-                        map.set(k, { ...cq, ...localQ, status: localQ.status, isDelivered: localQ.isDelivered, deliveryStatus: localQ.deliveryStatus });
-                      } else {
-                        map.set(k, { ...localQ, ...cq });
-                      }
+                      const isLocalPaid = localQ.isPaid === true || localQ.status === 'Pagada' || localQ.paymentStatus === 'Pagada' || cq.isPaid === true || cq.status === 'Pagada' || cq.paymentStatus === 'Pagada';
+                      const bestStatus = isLocalPaid ? 'Pagada' : (localQ.status === 'Facturada' || cq.status === 'Facturada' ? 'Facturada' : (localQ.status || cq.status));
+                      map.set(k, {
+                        ...cq,
+                        ...localQ,
+                        status: bestStatus,
+                        isPaid: isLocalPaid,
+                        paymentStatus: isLocalPaid ? 'Pagada' : (localQ.paymentStatus || cq.paymentStatus || 'Pendiente'),
+                        invoiceNumber: localQ.invoiceNumber || cq.invoiceNumber || '',
+                        purchaseOrderNumber: localQ.purchaseOrderNumber || cq.purchaseOrderNumber || '',
+                        isDelivered: localQ.isDelivered || cq.isDelivered || false,
+                        deliveryStatus: localQ.deliveryStatus || cq.deliveryStatus || 'pendiente'
+                      });
                     } else {
                       map.set(k, cq);
                     }
@@ -4424,19 +4448,21 @@
         }
 
         const ocClean = invoiceOcNumber.trim();
-        const isNowPaid = invoicePaymentStatus === 'Pagada al Día' || quote.isPaid || false;
+        const isNowPaid = invoicePaymentStatus === 'Pagada al Día' || quote.isPaid || quote.paymentStatus === 'Pagada' || quote.status === 'Pagada' || false;
         const paidDateVal = isNowPaid ? (quote.paidDate || invoiceDate) : null;
+        const targetStatus = isNowPaid ? 'Pagada' : 'Facturada';
 
-        // 1. Marcar cotización como Facturada
+        // 1. Marcar cotización con su factura y conservar estado de pago
         const updatedHistory = quoteHistory.map(q => {
           if (q.correlative === correlative) {
             return {
               ...q,
-              status: 'Facturada',
+              status: targetStatus,
               invoiceNumber: invNum,
               invoiceDate: invoiceDate,
               purchaseOrderNumber: ocClean || q.purchaseOrderNumber,
-              invoicePaymentStatus: invoicePaymentStatus,
+              invoicePaymentStatus: isNowPaid ? 'Pagada al Día' : invoicePaymentStatus,
+              paymentStatus: isNowPaid ? 'Pagada' : (q.paymentStatus || 'Pendiente'),
               isPaid: isNowPaid,
               paidDate: paidDateVal,
               invoiceNotes: invoiceNotes.trim()
@@ -4455,6 +4481,7 @@
               purchaseOrderNumber: ocClean || o.purchaseOrderNumber,
               isInvoiced: true,
               isPaid: isNowPaid,
+              paymentStatus: isNowPaid ? 'Pagada' : (o.paymentStatus || 'Pendiente'),
               paidDate: paidDateVal
             };
           }
@@ -4466,11 +4493,12 @@
           localStorage.setItem('olivar_quotes_history', JSON.stringify(updatedHistory));
           if (window.db) {
             window.db.collection('quotes').doc(correlative).set({
-              status: 'Facturada',
+              status: targetStatus,
               invoiceNumber: invNum,
               invoiceDate: invoiceDate,
               purchaseOrderNumber: ocClean,
-              invoicePaymentStatus: invoicePaymentStatus,
+              invoicePaymentStatus: isNowPaid ? 'Pagada al Día' : invoicePaymentStatus,
+              paymentStatus: isNowPaid ? 'Pagada' : 'Pendiente',
               isPaid: isNowPaid,
               paidDate: paidDateVal,
               invoiceNotes: invoiceNotes.trim()
@@ -4486,8 +4514,14 @@
               body: JSON.stringify({
                 action: 'updateStatus',
                 correlative: correlative,
-                status: 'Facturada',
-                invoiceNumber: invNum
+                status: targetStatus,
+                invoiceNumber: invNum,
+                isPaid: isNowPaid,
+                paymentStatus: isNowPaid ? 'Pagada' : 'Pendiente'
+              })
+            }).catch(() => {});
+          } catch(e) {}
+        }
               })
             }).catch(() => {});
           } catch(e) {}
@@ -4904,7 +4938,7 @@
       const quotesReadyToInvoice = useMemo(() => {
         return (quoteHistory || []).filter(q => {
           if (!q) return false;
-          if (q.isPaid || q.paymentStatus === 'Pagada' || q.invoicePaymentStatus === 'Pagada al Día') return false;
+          if (q.isPaid || q.paymentStatus === 'Pagada' || q.invoicePaymentStatus === 'Pagada al Día' || q.status === 'Pagada' || String(q.status || '').toLowerCase() === 'pagada') return false;
           if (q.status === 'Facturada' || Boolean(q.invoiceNumber)) return false;
           const ot = getOrBuildOtForQuote(q);
           const s = String(q.status || '').toLowerCase();
@@ -8876,7 +8910,12 @@
                 {/* SUB-PESTAÑA 3: HISTORIAL DE COTIZACIONES EMITIDAS & CONTROL DE COBRANZAS */}
                 {intranetTab === 'historial' && (() => {
                   const isQuotePaid = (q) => {
-                    return q.isPaid === true || q.paymentStatus === 'Pagada' || q.invoicePaymentStatus === 'Pagada al Día';
+                    if (!q) return false;
+                    return q.isPaid === true ||
+                           q.paymentStatus === 'Pagada' ||
+                           q.invoicePaymentStatus === 'Pagada al Día' ||
+                           q.status === 'Pagada' ||
+                           String(q.status || '').toLowerCase() === 'pagada';
                   };
 
                   const isQuoteInvoiced = (q) => {
@@ -9716,11 +9755,11 @@
                                     );
                                   })()}
 
-                                  {/* Botón: Facturar Orden */}
+                                  {/* Botón: Facturar Orden / N° Factura */}
                                   {(() => {
                                     const existingOt = workOrders.find(o => o.correlative === q.correlative);
-                                    const isAlreadyInvoiced = q.status === 'Facturada' || !!q.invoiceNumber;
-                                    const isReadyToInvoice = q.status === 'Terminada' || (existingOt && existingOt.status === 'completado');
+                                    const isAlreadyInvoiced = q.status === 'Facturada' || Boolean(q.invoiceNumber);
+                                    const isReadyToInvoice = !paid && !isQuotePaid(q) && (q.status === 'Terminada' || (existingOt && existingOt.status === 'completado'));
 
                                     if (isAlreadyInvoiced) {
                                       return (
@@ -9728,10 +9767,24 @@
                                           type="button"
                                           onClick={() => handleOpenInvoiceModal(q)}
                                           className="bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-300 px-3.5 py-2 rounded-xl text-xs font-bold shadow-sm flex items-center gap-1.5 transition cursor-pointer"
-                                          title="Ver datos de Facturación y Cierre"
+                                          title="Ver o editar datos de Facturación y Cierre"
                                         >
                                           <Icon name="file-text" className="w-3.5 h-3.5 text-purple-700" />
-                                          <span>🧾 Fac. #{q.invoiceNumber || 'Emitida'}</span>
+                                          <span>🧾 Fac. #{q.invoiceNumber || 'Emitida'}{paid ? ' (Pagada)' : ''}</span>
+                                        </button>
+                                      );
+                                    }
+
+                                    if (paid || isQuotePaid(q)) {
+                                      return (
+                                        <button
+                                          type="button"
+                                          onClick={() => handleOpenInvoiceModal(q)}
+                                          className="bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 px-3 py-2 rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5 transition cursor-pointer"
+                                          title="Ingresar N° de Factura SII para este trabajo pagado"
+                                        >
+                                          <Icon name="file-text" className="w-3.5 h-3.5 text-slate-600" />
+                                          <span>+ N° Factura</span>
                                         </button>
                                       );
                                     }
